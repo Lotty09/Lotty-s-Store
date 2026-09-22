@@ -1,0 +1,18 @@
+# Environment Variables (CRITICAL)
+.env
+.env.*
+
+# Dependencies
+node_modules/
+package-lock.json
+
+# Build Outputs (Compiled TypeScript)
+dist/
+build/
+
+# Prisma SQLite Database (Keeps your local test data private)
+prisma/*.db
+prisma/*.db-journal
+
+# Local Uploads (Since you now use Cloudinary)
+uploads/

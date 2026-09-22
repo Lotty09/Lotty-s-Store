@@ -1,0 +1,35 @@
+@import "tailwindcss";
+
+/* 1. GLOBAL BACKGROUND (Pure CSS Gradient) */
+body {
+  background: linear-gradient(to bottom right, #60a5fa, #bfdbfe, #facc15) !important;
+  background-attachment: fixed !important;
+  background-repeat: no-repeat !important;
+  color: #000000 !important;
+  min-height: 100vh;
+}
+
+/* 2. GLOBAL FORM STYLING (Pure CSS) */
+input, textarea, select {
+  color: #000000 !important;
+  background-color: #ffffff !important;
+  border: 1px solid #9ca3af !important;
+  border-radius: 0.5rem !important;
+  padding: 0.75rem !important;
+  outline: none !important;
+  transition: all 0.2s ease-in-out !important;
+}
+
+input:focus, textarea:focus, select:focus {
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.4) !important;
+}
+
+/* 3. OVERRIDE PREVIOUS PAGE BACKGROUNDS */
+.bg-gray-50 {
+  background-color: transparent !important;
+}
+
+.bg-white {
+  background-color: #ffffff !important;
+}
