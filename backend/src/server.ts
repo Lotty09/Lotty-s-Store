@@ -47,8 +47,11 @@ server.register(orderRoutes, { prefix: '/api/orders' });
 
 const start = async () => {
   try {
-    await server.listen({ port: 3001, host: '0.0.0.0' });
-    console.log('E-commerce API running on http://localhost:3001');
+    // Read Render's dynamic port, or use 3001 locally
+    const port = process.env.PORT ? parseInt(process.env.PORT) : 3001;
+    
+    await server.listen({ port: port, host: '0.0.0.0' });
+    console.log(`E-commerce API running on port ${port}`);
   } catch (err) {
     server.log.error(err);
     process.exit(1);
