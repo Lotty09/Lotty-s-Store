@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+// 1. We imported useEffect here
+import { useState, useEffect } from 'react';
 import { useCart } from '@/context/CartContext';
 import api from '@/lib/api';
 import { ArrowLeft, CheckCircle, ShieldCheck } from 'lucide-react';
@@ -14,6 +15,9 @@ export default function CheckoutPage() {
   
   // NEW: Store the order ID after payment
   const [orderId, setOrderId] = useState<number | null>(null); 
+  
+  // 2. Add the isMounted state
+  const [isMounted, setIsMounted] = useState(false);
 
   const [formData, setFormData] = useState({
     customerName: '',
@@ -21,6 +25,11 @@ export default function CheckoutPage() {
     customerPhone: '',
     address: ''
   });
+
+  // 3. Add the useEffect hook to detect when the browser has loaded
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -30,15 +39,12 @@ export default function CheckoutPage() {
   const paystackConfig = {
     reference: `LOTTY_${new Date().getTime().toString()}`,
     email: formData.customerEmail,
-    // Paystack calculates in kobo, so we multiply Naira by 100
     amount: cartTotal * 100, 
-    // Replace this with your ACTUAL Paystack Public Key later
     publicKey: 'pk_test_00d42013b646ba5bb50d90c6a3d88979d6cf79b3', 
   };
 
   const initializePayment = usePaystackPayment(paystackConfig);
 
-  // What happens when the payment is successful
   const onSuccess = async (reference: any) => {
     try {
       const payload = {
@@ -51,7 +57,6 @@ export default function CheckoutPage() {
         }))
       };
 
-      // NEW: Save order to Fastify database and capture the returned ID
       const response = await api.post('/orders', payload);
       setOrderId(response.data.id);
       
@@ -65,7 +70,6 @@ export default function CheckoutPage() {
     }
   };
 
-  // What happens if the user closes the Paystack modal
   const onClose = () => {
     alert('Payment window closed.');
     setLoading(false);
@@ -75,9 +79,13 @@ export default function CheckoutPage() {
     e.preventDefault();
     setLoading(true);
     
-    // Trigger Paystack Popup instead of instantly saving
     initializePayment({ onSuccess, onClose } as any);
   };
+
+  // 4. Important: Return null during server-side rendering
+  if (!isMounted) {
+    return null;
+  }
 
   // Success Screen (Also themed)
   if (success) {
@@ -90,7 +98,6 @@ export default function CheckoutPage() {
             Thank you for shopping at Lotty's Store.
           </p>
           
-          {/* NEW: Order Tracking ID Display */}
           <div className="bg-slate-100 border border-slate-300 p-6 rounded-xl w-full max-w-xs mb-8">
             <p className="text-sm text-slate-500 font-bold uppercase tracking-wider mb-1">Your Order ID</p>
             <p className="text-4xl font-extrabold text-blue-600">#{orderId}</p>
@@ -119,7 +126,6 @@ export default function CheckoutPage() {
   }
 
   return (
-    // NEW: Blue to Yellow background for checkout
     <div className="min-h-screen bg-gradient-to-br from-blue-400 via-blue-200 to-yellow-400 py-12">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         
