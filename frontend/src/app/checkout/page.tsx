@@ -1,7 +1,7 @@
+"use client";
+
 import dynamic from 'next/dynamic';
 
-// This tells Next.js to NEVER run this component on the server during build time.
-// It will only load in the user's browser.
 const CheckoutClient = dynamic(() => import('./CheckoutClient'), { 
   ssr: false,
   loading: () => (
