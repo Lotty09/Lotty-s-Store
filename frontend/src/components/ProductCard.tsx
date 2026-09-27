@@ -9,7 +9,10 @@ interface Product {
 
 export default function ProductCard({ product }: { product: Product }) {
   const { addToCart } = useCart();
-  const imageUrl = product.images?.[0]?.url ? `http://localhost:3001${product.images[0].url}` : null;
+  
+  // CHANGED: Cloudinary already returns a full 'https://...' URL.
+  // We no longer need to prefix it with localhost:3001.
+  const imageUrl = product.images?.[0]?.url || null;
 
   const handleAdd = () => {
     addToCart({
@@ -34,7 +37,17 @@ export default function ProductCard({ product }: { product: Product }) {
         <span className="text-xs font-semibold text-blue-600 uppercase tracking-wider mb-1">
           {product.category?.name || 'Uncategorized'}
         </span>
-        <h3 className="text-lg font-bold text-gray-900 mb-2 line-clamp-1">{product.name}</h3>
+        
+        {/* Added a subtle UI indicator if a product has multiple images */}
+        <div className="flex justify-between items-start mb-2">
+          <h3 className="text-lg font-bold text-gray-900 line-clamp-1">{product.name}</h3>
+          {product.images && product.images.length > 1 && (
+             <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-1 rounded-full whitespace-nowrap ml-2">
+               {product.images.length} photos
+             </span>
+          )}
+        </div>
+
         <p className="text-xl font-extrabold text-gray-900 mt-auto mb-4">₦{product.price.toFixed(2)}</p>
         
         {/* Button now triggers the context */}

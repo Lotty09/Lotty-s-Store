@@ -20,7 +20,9 @@ interface Product {
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [imageFile, setImageFile] = useState<File | null>(null);
+  
+  // CHANGED: State now holds an array of files instead of a single file
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
   
   const [formData, setFormData] = useState({
     name: '', description: '', price: '', originalPrice: '', stockQuantity: '', categoryId: '', sku: ''
@@ -67,15 +69,21 @@ export default function ProductsPage() {
       const productRes = await api.post('/products', payload);
       const newProductId = productRes.data.id;
 
-      if (imageFile) {
+      // CHANGED: Loop through the array of files and append each to FormData
+      if (imageFiles.length > 0) {
         const imageFormData = new FormData();
-        imageFormData.append('file', imageFile);
+        imageFiles.forEach((file) => {
+          // Note: the backend uses request.files(), so it expects standard form parts. 
+          // We map them all to the name "images" (or "file" depending on your API wrapper setup)
+          imageFormData.append('images', file);
+        });
+        
         await api.post(`/products/${newProductId}/image`, imageFormData);
       }
       
       fetchData();
       setFormData(prev => ({ ...prev, name: '', description: '', price: '', originalPrice: '', stockQuantity: '', sku: '' }));
-      setImageFile(null);
+      setImageFiles([]);
       (document.getElementById('image-upload') as HTMLInputElement).value = '';
       
     } catch (err: any) {
@@ -85,7 +93,6 @@ export default function ProductsPage() {
     }
   };
 
-  // NEW: Delete handling function
   const handleDelete = async (id: number) => {
     if (!confirm('Are you sure you want to permanently delete this product?')) return;
     try {
@@ -114,14 +121,20 @@ export default function ProductsPage() {
             {error && <div className="text-red-500 text-sm bg-red-50 p-2 rounded">{error}</div>}
             
             <div>
-              <label className="block text-sm font-medium text-gray-700">Product Image</label>
+              <label className="block text-sm font-medium text-gray-700">Product Images</label>
+              {/* CHANGED: Added the 'multiple' attribute and updated onChange */}
               <input 
                 id="image-upload"
                 type="file" 
+                multiple
                 accept="image/*"
-                onChange={(e) => setImageFile(e.target.files?.[0] || null)}
+                onChange={(e) => setImageFiles(Array.from(e.target.files || []))}
                 className="mt-1 w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 border border-gray-300 rounded-md p-1"
               />
+              {/* Optional: Show user how many files they selected */}
+              {imageFiles.length > 0 && (
+                <p className="text-xs text-gray-500 mt-1">{imageFiles.length} file(s) selected</p>
+              )}
             </div>
 
             <div>
@@ -150,7 +163,7 @@ export default function ProductsPage() {
             </div>
 
             <button type="submit" disabled={loading} className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400">
-              {loading ? 'Saving...' : 'Save Product & Image'}
+              {loading ? 'Saving...' : 'Save Product & Images'}
             </button>
           </form>
         </div>
@@ -194,7 +207,15 @@ export default function ProductsPage() {
                         )}
                       </td>
                       
-                      <td className="px-4 py-3 text-sm font-medium text-gray-900 truncate">{product.name}</td>
+                      <td className="px-4 py-3 text-sm font-medium text-gray-900 truncate">
+                        {product.name}
+                        {/* Optional: Show badge for multiple images */}
+                        {product.images?.length > 1 && (
+                          <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            +{product.images.length - 1} photos
+                          </span>
+                        )}
+                      </td>
                       <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
                         <span className="inline-flex items-center gap-1 bg-gray-100 px-2 py-1 rounded text-xs">
                           <Tag size={12} /> {product.category?.name || 'Uncategorized'}
