@@ -50,38 +50,48 @@ export const createProduct = async (request: FastifyRequest, reply: FastifyReply
 
 export const uploadProductImage = async (request: FastifyRequest, reply: FastifyReply) => {
   const { id } = request.params as { id: string };
-  const data = await request.file();
+  // Changed from request.file() to request.files() to catch an array of files
+  const parts = request.files(); 
   
-  if (!data) return reply.code(400).send({ error: 'No image uploaded' });
-
   try {
-    const buffer = await data.toBuffer();
+    const uploadedImages = [];
 
-    // Stream the buffer to Cloudinary
-    const uploadToCloudinary = (): Promise<any> => {
-      return new Promise((resolve, reject) => {
-        const uploadStream = cloudinary.uploader.upload_stream(
-          { folder: 'lottys-store' },
-          (error, result) => {
-            if (error) reject(error);
-            else resolve(result);
-          }
-        );
-        Readable.from(buffer).pipe(uploadStream);
+    // Loop through every file passed in the form data
+    for await (const part of parts) {
+      const buffer = await part.toBuffer();
+
+      // Stream the buffer to Cloudinary
+      const uploadToCloudinary = (): Promise<any> => {
+        return new Promise((resolve, reject) => {
+          const uploadStream = cloudinary.uploader.upload_stream(
+            { folder: 'lottys-store' },
+            (error, result) => {
+              if (error) reject(error);
+              else resolve(result);
+            }
+          );
+          Readable.from(buffer).pipe(uploadStream);
+        });
+      };
+
+      const cloudinaryResult = await uploadToCloudinary();
+
+      // Save the secure cloud URL to the database
+      const image = await prisma.productImage.create({
+        data: {
+          url: cloudinaryResult.secure_url,
+          productId: Number(id),
+        }
       });
-    };
 
-    const cloudinaryResult = await uploadToCloudinary();
+      uploadedImages.push(image);
+    }
 
-    // Save the secure cloud URL to the database
-    const image = await prisma.productImage.create({
-      data: {
-        url: cloudinaryResult.secure_url,
-        productId: Number(id),
-      }
-    });
+    if (uploadedImages.length === 0) {
+      return reply.code(400).send({ error: 'No images uploaded' });
+    }
 
-    reply.send(image);
+    reply.send(uploadedImages);
   } catch (error) {
     request.log.error(error);
     reply.code(500).send({ error: 'Cloud image upload failed' });
