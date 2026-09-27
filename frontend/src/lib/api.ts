@@ -3,7 +3,7 @@ import Cookies from 'js-cookie';
 
 const api = axios.create({
   // Completely removing process.env and localhost to force the Render connection
-  baseURL: 'https://YOUR-BACKEND-URL.onrender.com/api', 
+  baseURL: 'https://lotty-s-store.onrender.com/api', 
 });
 
 // Automatically attach the JWT token to every request
