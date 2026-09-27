@@ -2,7 +2,8 @@ import axios from 'axios';
 import Cookies from 'js-cookie';
 
 const api = axios.create({
-  baseURL: 'http://localhost:3001/api', 
+  // Uses your Vercel Config variable in production, but falls back to localhost for local development
+  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api', 
 });
 
 // Automatically attach the JWT token to every request
