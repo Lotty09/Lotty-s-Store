@@ -21,7 +21,7 @@ export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   
-  // CHANGED: State now holds an array of files instead of a single file
+  // State holds an array of files
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   
   const [formData, setFormData] = useState({
@@ -69,12 +69,10 @@ export default function ProductsPage() {
       const productRes = await api.post('/products', payload);
       const newProductId = productRes.data.id;
 
-      // CHANGED: Loop through the array of files and append each to FormData
+      // Loop through the array of files and append each to FormData
       if (imageFiles.length > 0) {
         const imageFormData = new FormData();
         imageFiles.forEach((file) => {
-          // Note: the backend uses request.files(), so it expects standard form parts. 
-          // We map them all to the name "images" (or "file" depending on your API wrapper setup)
           imageFormData.append('images', file);
         });
         
@@ -122,7 +120,6 @@ export default function ProductsPage() {
             
             <div>
               <label className="block text-sm font-medium text-gray-700">Product Images</label>
-              {/* CHANGED: Added the 'multiple' attribute and updated onChange */}
               <input 
                 id="image-upload"
                 type="file" 
@@ -131,7 +128,6 @@ export default function ProductsPage() {
                 onChange={(e) => setImageFiles(Array.from(e.target.files || []))}
                 className="mt-1 w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 border border-gray-300 rounded-md p-1"
               />
-              {/* Optional: Show user how many files they selected */}
               {imageFiles.length > 0 && (
                 <p className="text-xs text-gray-500 mt-1">{imageFiles.length} file(s) selected</p>
               )}
@@ -209,7 +205,6 @@ export default function ProductsPage() {
                       
                       <td className="px-4 py-3 text-sm font-medium text-gray-900 truncate">
                         {product.name}
-                        {/* Optional: Show badge for multiple images */}
                         {product.images?.length > 1 && (
                           <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                             +{product.images.length - 1} photos
