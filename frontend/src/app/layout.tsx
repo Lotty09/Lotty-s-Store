@@ -1,26 +1,31 @@
-import type { Metadata } from "next";
-import { Inter } from "next/font/google";
-import "./globals.css";
-import { CartProvider } from "@/context/CartContext";
+import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
+import './globals.css';
 
-const inter = Inter({ subsets: ["latin"] });
+// 1. IMPORT YOUR CART PROVIDER HERE
+import { CartProvider } from '@/context/CartContext';
+
+const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: "TechStore",
-  description: "Modern E-commerce Platform",
+  title: 'My Store',
+  description: 'E-commerce store',
 };
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
     <html lang="en">
       <body className={inter.className}>
+        
+        {/* 2. WRAP THE CHILDREN IN THE PROVIDER */}
         <CartProvider>
           {children}
         </CartProvider>
+        
       </body>
     </html>
   );
