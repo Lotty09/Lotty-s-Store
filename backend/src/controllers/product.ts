@@ -125,3 +125,17 @@ export const deleteProduct = async (request: FastifyRequest, reply: FastifyReply
     reply.code(500).send({ error: 'Failed to delete product' });
   }
 };
+export const getProductById = async (request: FastifyRequest, reply: FastifyReply) => {
+  const { id } = request.params as { id: string };
+  try {
+    const product = await prisma.product.findUnique({
+      where: { id: Number(id) },
+      include: { category: true, images: true }
+    });
+    
+    if (!product) return reply.code(404).send({ error: 'Product not found' });
+    reply.send(product);
+  } catch (error) {
+    reply.code(500).send({ error: 'Failed to fetch product' });
+  }
+};
