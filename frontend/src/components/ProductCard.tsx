@@ -1,6 +1,7 @@
 'use client';
 import { ShoppingCart } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
+import Link from 'next/link'; // <-- ADDED: Import Link from Next.js
 
 interface ProductImage { url: string; }
 interface Product {
@@ -10,8 +11,6 @@ interface Product {
 export default function ProductCard({ product }: { product: Product }) {
   const { addToCart } = useCart();
   
-  // CHANGED: Cloudinary already returns a full 'https://...' URL.
-  // We no longer need to prefix it with localhost:3001.
   const imageUrl = product.images?.[0]?.url || null;
 
   const handleAdd = () => {
@@ -26,21 +25,27 @@ export default function ProductCard({ product }: { product: Product }) {
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow flex flex-col">
-      <div className="h-56 bg-gray-100 relative w-full">
+      
+      {/* CHANGED: Wrapped the image container in a Link */}
+      <Link href={`/product/${product.id}`} className="h-56 bg-gray-100 relative w-full block cursor-pointer">
         {imageUrl ? (
-          <img src={imageUrl} alt={product.name} className="object-cover w-full h-full" />
+          <img src={imageUrl} alt={product.name} className="object-cover w-full h-full hover:opacity-90 transition-opacity" />
         ) : (
           <div className="flex items-center justify-center w-full h-full text-gray-400 text-sm">No Image</div>
         )}
-      </div>
+      </Link>
+
       <div className="p-5 flex-1 flex flex-col">
         <span className="text-xs font-semibold text-blue-600 uppercase tracking-wider mb-1">
           {product.category?.name || 'Uncategorized'}
         </span>
         
-        {/* Added a subtle UI indicator if a product has multiple images */}
         <div className="flex justify-between items-start mb-2">
-          <h3 className="text-lg font-bold text-gray-900 line-clamp-1">{product.name}</h3>
+          {/* CHANGED: Wrapped the product name in a Link */}
+          <Link href={`/product/${product.id}`} className="hover:text-blue-600 transition-colors">
+            <h3 className="text-lg font-bold text-gray-900 line-clamp-1">{product.name}</h3>
+          </Link>
+          
           {product.images && product.images.length > 1 && (
              <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-1 rounded-full whitespace-nowrap ml-2">
                {product.images.length} photos
@@ -50,7 +55,6 @@ export default function ProductCard({ product }: { product: Product }) {
 
         <p className="text-xl font-extrabold text-gray-900 mt-auto mb-4">₦{product.price.toFixed(2)}</p>
         
-        {/* Button now triggers the context */}
         <button onClick={handleAdd} className="w-full flex items-center justify-center gap-2 bg-gray-900 text-white py-2.5 px-4 rounded-lg hover:bg-gray-800 active:scale-95 transition-all font-medium">
           <ShoppingCart size={18} /> Add to Cart
         </button>
