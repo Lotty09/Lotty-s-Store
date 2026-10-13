@@ -1,64 +1,75 @@
 'use client';
-import { ShoppingCart } from 'lucide-react';
-import { useCart } from '@/context/CartContext';
-import Link from 'next/link'; // <-- ADDED: Import Link from Next.js
 
-interface ProductImage { url: string; }
-interface Product {
-  id: number; name: string; price: number; category: { name: string }; images: ProductImage[];
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+
+export interface CartItem {
+  id: number;
+  name: string;
+  price: number;
+  image: string | null;
+  quantity: number;
 }
 
-export default function ProductCard({ product }: { product: Product }) {
-  const { addToCart } = useCart();
-  
-  const imageUrl = product.images?.[0]?.url || null;
+interface CartContextType {
+  cart: CartItem[];
+  addToCart: (item: CartItem) => void;
+  removeFromCart: (id: number) => void;
+  cartCount: number;
+  cartTotal: number;
+}
 
-  const handleAdd = () => {
-    addToCart({
-      id: product.id,
-      name: product.name,
-      price: product.price,
-      image: imageUrl,
-      quantity: 1
+const CartContext = createContext<CartContextType | undefined>(undefined);
+
+export function CartProvider({ children }: { children: ReactNode }) {
+  const [cart, setCart] = useState<CartItem[]>([]);
+  
+  // NEW: Add a flag to track if localStorage has been loaded yet
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  // 1. Load cart from localStorage when the app starts
+  useEffect(() => {
+    const savedCart = localStorage.getItem('techstore-cart');
+    if (savedCart) {
+      setCart(JSON.parse(savedCart));
+    }
+    setIsLoaded(true); // Tell the app we are done loading
+  }, []);
+
+  // 2. Save cart to localStorage ONLY AFTER it has finished loading
+  useEffect(() => {
+    if (isLoaded) {
+      localStorage.setItem('techstore-cart', JSON.stringify(cart));
+    }
+  }, [cart, isLoaded]);
+
+  const addToCart = (product: CartItem) => {
+    setCart((prevCart) => {
+      const existingItem = prevCart.find((item) => item.id === product.id);
+      if (existingItem) {
+        return prevCart.map((item) =>
+          item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
+        );
+      }
+      return [...prevCart, { ...product, quantity: 1 }];
     });
   };
 
+  const removeFromCart = (id: number) => {
+    setCart((prevCart) => prevCart.filter((item) => item.id !== id));
+  };
+
+  const cartCount = cart.reduce((total, item) => total + item.quantity, 0);
+  const cartTotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
+
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow flex flex-col">
-      
-      {/* CHANGED: Wrapped the image container in a Link */}
-      <Link href={`/product/${product.id}`} className="h-56 bg-gray-100 relative w-full block cursor-pointer">
-        {imageUrl ? (
-          <img src={imageUrl} alt={product.name} className="object-cover w-full h-full hover:opacity-90 transition-opacity" />
-        ) : (
-          <div className="flex items-center justify-center w-full h-full text-gray-400 text-sm">No Image</div>
-        )}
-      </Link>
-
-      <div className="p-5 flex-1 flex flex-col">
-        <span className="text-xs font-semibold text-blue-600 uppercase tracking-wider mb-1">
-          {product.category?.name || 'Uncategorized'}
-        </span>
-        
-        <div className="flex justify-between items-start mb-2">
-          {/* CHANGED: Wrapped the product name in a Link */}
-          <Link href={`/product/${product.id}`} className="hover:text-blue-600 transition-colors">
-            <h3 className="text-lg font-bold text-gray-900 line-clamp-1">{product.name}</h3>
-          </Link>
-          
-          {product.images && product.images.length > 1 && (
-             <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-1 rounded-full whitespace-nowrap ml-2">
-               {product.images.length} photos
-             </span>
-          )}
-        </div>
-
-        <p className="text-xl font-extrabold text-gray-900 mt-auto mb-4">₦{product.price.toFixed(2)}</p>
-        
-        <button onClick={handleAdd} className="w-full flex items-center justify-center gap-2 bg-gray-900 text-white py-2.5 px-4 rounded-lg hover:bg-gray-800 active:scale-95 transition-all font-medium">
-          <ShoppingCart size={18} /> Add to Cart
-        </button>
-      </div>
-    </div>
+    <CartContext.Provider value={{ cart, addToCart, removeFromCart, cartCount, cartTotal }}>
+      {children}
+    </CartContext.Provider>
   );
 }
+
+export const useCart = () => {
+  const context = useContext(CartContext);
+  if (!context) throw new Error('useCart must be used within a CartProvider');
+  return context;
+};
