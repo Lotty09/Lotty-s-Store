@@ -74,5 +74,6 @@ model OrderItem {
   productId Int
   product   Product @relation(fields: [productId], references: [id])
   quantity  Int
-  price     Float   // Stored historically so price changes don't affect old orders
+  price     Float
+  image     String? // <-- This is the only new line we needed!
 }

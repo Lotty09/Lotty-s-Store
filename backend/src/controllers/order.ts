@@ -19,9 +19,12 @@ export const createOrder = async (request: FastifyRequest, reply: FastifyReply) 
             productId: item.id,
             quantity: item.quantity,
             price: item.price,
+            image: item.image // <-- NEW: Now the database saves the exact design they chose!
           })),
         },
-      }
+      },
+      // NEW: Include the items so the response sends them back for confirmation
+      include: { items: true } 
     });
 
     reply.code(201).send(order);
