@@ -56,7 +56,7 @@ export default function CartPage() {
                   ₦{(item.price * item.quantity).toFixed(2)}
                 </div>
                 <button 
-                  onClick={() => removeFromCart(item.id)}
+                  onClick={() => removeFromCart(item.id, item.image)}
                   className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors ml-2"
                   title="Remove item"
                 >
