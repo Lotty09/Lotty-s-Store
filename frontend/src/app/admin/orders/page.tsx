@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import api from '@/lib/api';
-import { Package, Truck, CheckCircle, Clock } from 'lucide-react';
 
 export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<any[]>([]);
@@ -15,7 +14,11 @@ export default function AdminOrdersPage() {
   const fetchOrders = async () => {
     try {
       const response = await api.get('/orders');
-      setOrders(response.data);
+      // Sort so newest orders are at the top
+      const sortedOrders = response.data.sort((a: any, b: any) => 
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+      setOrders(sortedOrders);
     } catch (error) {
       console.error('Failed to load orders');
     } finally {
@@ -26,7 +29,6 @@ export default function AdminOrdersPage() {
   const handleStatusChange = async (orderId: number, newStatus: string) => {
     try {
       await api.put(`/orders/${orderId}/status`, { status: newStatus });
-      // Update the UI immediately without reloading
       setOrders(orders.map(order => 
         order.id === orderId ? { ...order, status: newStatus } : order
       ));
@@ -82,16 +84,38 @@ export default function AdminOrdersPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="text-gray-600 max-w-[200px]">
+                      {/* UPDATED: Flex container to hold the image and text side-by-side */}
+                      <div className="flex flex-col gap-3 min-w-[200px]">
                         {order.items.map((item: any) => (
-                          <div key={item.id} className="truncate">
-                            {item.quantity}x {item.product?.name || 'Unknown Product'}
+                          <div key={item.id} className="flex items-center gap-3 bg-white p-2 rounded border border-gray-100 shadow-sm">
+                            
+                            {/* The Image Thumbnail */}
+                            <div className="w-12 h-12 bg-gray-100 rounded overflow-hidden flex-shrink-0 border border-gray-200">
+                              {item.image ? (
+                                <img src={item.image} alt="variant" className="w-full h-full object-cover" />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center text-[8px] text-red-500 font-bold bg-red-50 text-center">
+                                  NO<br/>IMAGE
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Item Text */}
+                            <div>
+                              <div className="font-semibold text-gray-900 line-clamp-1" title={item.product?.name}>
+                                {item.product?.name || 'Unknown Product'}
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                Qty: <span className="font-bold text-gray-700">{item.quantity}</span>
+                              </div>
+                            </div>
+
                           </div>
                         ))}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap font-bold text-blue-600">
-                      ₦{order.totalAmount.toFixed(2)}
+                      ₦{order.totalAmount.toLocaleString()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-3 py-1 rounded-full text-xs font-bold border ${getStatusColor(order.status)}`}>
@@ -102,7 +126,7 @@ export default function AdminOrdersPage() {
                       <select
                         value={order.status || 'PENDING'}
                         onChange={(e) => handleStatusChange(order.id, e.target.value)}
-                        className="bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2"
+                        className="bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2 outline-none cursor-pointer"
                       >
                         <option value="PENDING">Pending</option>
                         <option value="SHIPPED">Shipped</option>
