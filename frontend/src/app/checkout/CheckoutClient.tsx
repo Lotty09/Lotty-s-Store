@@ -53,8 +53,7 @@ export default function CheckoutPage() {
         items: cart.map(item => ({
           id: item.id,
           quantity: item.quantity,
-          price: item.price,
-          image: item.image 
+          price: item.price
         }))
       };
 
@@ -70,7 +69,7 @@ export default function CheckoutPage() {
       setLoading(false);
     }
   };
-
+  
   const onClose = () => {
     alert('Payment window closed.');
     setLoading(false);
