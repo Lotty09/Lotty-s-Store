@@ -1,6 +1,5 @@
 'use client';
 
-// 1. We imported useEffect here
 import { useState, useEffect } from 'react';
 import { useCart } from '@/context/CartContext';
 import api from '@/lib/api';
@@ -13,10 +12,10 @@ export default function CheckoutPage() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   
-  // NEW: Store the order ID after payment
+  // Store the order ID after payment
   const [orderId, setOrderId] = useState<number | null>(null); 
   
-  // 2. Add the isMounted state
+  // Add the isMounted state
   const [isMounted, setIsMounted] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -26,7 +25,7 @@ export default function CheckoutPage() {
     address: ''
   });
 
-  // 3. Add the useEffect hook to detect when the browser has loaded
+  // Detect when the browser has loaded
   useEffect(() => {
     setIsMounted(true);
   }, []);
@@ -40,7 +39,7 @@ export default function CheckoutPage() {
     reference: `LOTTY_${new Date().getTime().toString()}`,
     email: formData.customerEmail,
     amount: cartTotal * 100, 
-    publicKey: 'pk_test_00d42013b646ba5bb50d90c6a3d88979d6cf79b3', 
+    publicKey: 'pk_test_00d42013b646ba5bb50d90c6a3d88979d6cf79b3', // <-- PUT YOUR PAYSTACK KEY HERE
   };
 
   const initializePayment = usePaystackPayment(paystackConfig);
@@ -50,10 +49,12 @@ export default function CheckoutPage() {
       const payload = {
         ...formData,
         totalAmount: cartTotal,
+        // CHANGED: Added the image to the payload so the backend knows which design was ordered
         items: cart.map(item => ({
           id: item.id,
           quantity: item.quantity,
-          price: item.price
+          price: item.price,
+          image: item.image 
         }))
       };
 
@@ -82,12 +83,12 @@ export default function CheckoutPage() {
     initializePayment({ onSuccess, onClose } as any);
   };
 
-  // 4. Important: Return null during server-side rendering
+  // Important: Return null during server-side rendering
   if (!isMounted) {
     return null;
   }
 
-  // Success Screen (Also themed)
+  // Success Screen
   if (success) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-4">
@@ -173,8 +174,9 @@ export default function CheckoutPage() {
               <h2 className="text-xl font-bold text-black mb-4">Order Summary</h2>
               
               <div className="max-h-64 overflow-y-auto mb-4 border-b-2 border-yellow-200 pb-4 space-y-3">
-                {cart.map(item => (
-                  <div key={item.id} className="flex justify-between text-sm">
+                {/* CHANGED: Updated the key to use both ID and index to prevent React errors with duplicate IDs */}
+                {cart.map((item, index) => (
+                  <div key={`${item.id}-${index}`} className="flex justify-between text-sm">
                     <span className="text-black font-medium line-clamp-1 pr-4">{item.quantity}x {item.name}</span>
                     <span className="font-bold text-black">₦{(item.price * item.quantity).toFixed(2)}</span>
                   </div>
