@@ -96,7 +96,7 @@ export default function TrackOrderPage() {
               <h3 className="font-bold text-black border-b border-gray-200 pb-2 mb-3">Order Details</h3>
               <p className="text-sm text-gray-700"><strong>Name:</strong> {orderData.customerName}</p>
               <p className="text-sm text-gray-700"><strong>Address:</strong> {orderData.address}</p>
-              <p className="text-sm text-gray-700 mt-2"><strong>Total Paid:</strong> ₦{orderData.totalAmount.toFixed(2)}</p>
+              <p className="text-sm text-gray-700 mt-2"><strong>Order Total:</strong> ₦{orderData.totalAmount.toFixed(2)}</p>
             </div>
 
             <button onClick={() => setOrderData(null)} className="w-full bg-gray-100 text-black py-3 rounded-lg font-bold hover:bg-gray-200 transition-colors border border-gray-300">

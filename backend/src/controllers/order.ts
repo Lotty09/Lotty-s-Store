@@ -1,7 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
-import { getPaymentProvider } from '../payments';
+import { getPaymentProvider, isPaymentEnabled } from '../payments';
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -36,12 +36,24 @@ export const createOrder = async (request: FastifyRequest, reply: FastifyReply) 
   const customerEmail = readText(request.body.customerEmail, 3, 254)?.toLowerCase();
   const customerPhone = readText(request.body.customerPhone, 7, 30);
   const address = readText(request.body.address, 10, 2_000);
-  const paymentReference = readText(request.body.paymentReference, 1, 200);
+  const paymentEnabled = isPaymentEnabled();
+  const hasPaymentReference = request.body.paymentReference !== undefined
+    && request.body.paymentReference !== null
+    && request.body.paymentReference !== '';
+  const paymentReference = hasPaymentReference
+    ? readText(request.body.paymentReference, 1, 200)
+    : null;
   const items = request.body.items;
 
-  if (!customerName || !customerEmail || !customerPhone || !address || !paymentReference
+  if (!customerName || !customerEmail || !customerPhone || !address
+    || (hasPaymentReference && !paymentReference)
+    || (paymentEnabled && !paymentReference)
     || !emailPattern.test(customerEmail) || !Array.isArray(items) || items.length === 0) {
-    return reply.code(400).send({ error: 'Provide valid checkout details and payment information.' });
+    return reply.code(400).send({
+      error: paymentEnabled
+        ? 'Provide valid checkout details and payment information.'
+        : 'Provide valid checkout details.',
+    });
   }
 
   const normalizedItems: Array<{ productId: number; quantity: number; image: string | null }> = [];
@@ -63,12 +75,14 @@ export const createOrder = async (request: FastifyRequest, reply: FastifyReply) 
   }
 
   try {
-    const existingOrder = await prisma.order.findUnique({
-      where: { paymentReference },
-      select: { id: true },
-    });
-    if (existingOrder) {
-      return reply.code(409).send({ error: 'This payment has already been used.' });
+    if (paymentReference) {
+      const existingOrder = await prisma.order.findUnique({
+        where: { paymentReference },
+        select: { id: true },
+      });
+      if (existingOrder) {
+        return reply.code(409).send({ error: 'This payment has already been used.' });
+      }
     }
 
     const productIds = [...new Set(normalizedItems.map(item => item.productId))];
@@ -105,18 +119,20 @@ export const createOrder = async (request: FastifyRequest, reply: FastifyReply) 
     });
 
     totalAmount = Math.round((totalAmount + Number.EPSILON) * 100) / 100;
-    const paymentProvider = getPaymentProvider();
-    if (!paymentProvider) {
-      return reply.code(503).send({ error: 'The configured payment provider is not supported.' });
-    }
+    if (paymentReference) {
+      const paymentProvider = getPaymentProvider();
+      if (!paymentProvider) {
+        return reply.code(503).send({ error: 'The configured payment provider is not supported.' });
+      }
 
-    const verification = await paymentProvider.verifyPayment({
-      reference: paymentReference,
-      expectedAmount: Math.round(totalAmount * 100),
-      email: customerEmail,
-    });
-    if (!verification.ok) {
-      return reply.code(verification.status).send({ error: verification.error });
+      const verification = await paymentProvider.verifyPayment({
+        reference: paymentReference,
+        expectedAmount: Math.round(totalAmount * 100),
+        email: customerEmail,
+      });
+      if (!verification.ok) {
+        return reply.code(verification.status).send({ error: verification.error });
+      }
     }
 
     const order = await prisma.$transaction(async transaction => {
@@ -137,7 +153,7 @@ export const createOrder = async (request: FastifyRequest, reply: FastifyReply) 
           customerPhone,
           address,
           totalAmount,
-          status: 'PAID',
+          status: paymentReference ? 'PAID' : 'PENDING',
           paymentReference,
           items: { create: orderItems },
         },

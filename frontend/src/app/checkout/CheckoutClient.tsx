@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useCart } from '@/context/CartContext';
 import api from '@/lib/api';
 import { ArrowLeft, CheckCircle, ShieldCheck } from 'lucide-react';
@@ -11,6 +11,10 @@ export default function CheckoutPage() {
   const { cart, cartTotal, clearCart } = useCart();
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [paymentEnabled, setPaymentEnabled] = useState(false);
+  const [configLoaded, setConfigLoaded] = useState(false);
+  const [configError, setConfigError] = useState(false);
+  const [orderStatus, setOrderStatus] = useState<'PAID' | 'PENDING' | null>(null);
   
   // Store the order ID after payment
   const [orderId, setOrderId] = useState<number | null>(null); 
@@ -22,6 +26,30 @@ export default function CheckoutPage() {
     address: ''
   });
 
+  useEffect(() => {
+    let active = true;
+
+    const loadCheckoutConfig = async () => {
+      try {
+        const response = await api.get<{ paymentEnabled: boolean }>('/config');
+        if (typeof response.data.paymentEnabled !== 'boolean') {
+          throw new Error('Checkout configuration is invalid.');
+        }
+        if (active) setPaymentEnabled(response.data.paymentEnabled);
+      } catch (error) {
+        console.error('Failed to load checkout configuration:', error);
+        if (active) setConfigError(true);
+      } finally {
+        if (active) setConfigLoaded(true);
+      }
+    };
+
+    void loadCheckoutConfig();
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
@@ -29,23 +57,26 @@ export default function CheckoutPage() {
   const publicKey = getPaymentPublicKey();
   const startPayment = usePaymentProvider(publicKey);
 
+  const saveOrder = async (paymentReference?: string) => {
+    const payload = {
+      ...formData,
+      ...(paymentReference ? { paymentReference } : {}),
+      items: cart.map(item => ({
+        id: item.id,
+        quantity: item.quantity,
+        image: item.image,
+      }))
+    };
+    const response = await api.post('/orders', payload);
+    setOrderId(response.data.id);
+    setOrderStatus(response.data.status === 'PAID' ? 'PAID' : 'PENDING');
+    clearCart();
+    setSuccess(true);
+  };
+
   const onSuccess = async (paymentReference: string) => {
     try {
-      const payload = {
-        ...formData,
-        paymentReference,
-        items: cart.map(item => ({
-          id: item.id,
-          quantity: item.quantity,
-          image: item.image,
-        }))
-      };
-
-      const response = await api.post('/orders', payload);
-      setOrderId(response.data.id);
-      
-      clearCart();
-      setSuccess(true);
+      await saveOrder(paymentReference);
     } catch (error) {
       console.error('Database save failed:', error);
       alert('Payment successful, but order saving failed. Contact support.');
@@ -61,6 +92,23 @@ export default function CheckoutPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!configLoaded || configError) {
+      alert('Checkout settings could not be loaded. Please try again later.');
+      return;
+    }
+
+    if (!paymentEnabled) {
+      setLoading(true);
+      void saveOrder()
+        .catch((error: unknown) => {
+          console.error('Failed to place unpaid order:', error);
+          alert('Unable to place your order. Please try again.');
+        })
+        .finally(() => setLoading(false));
+      return;
+    }
+
     if (!publicKey) {
       alert('Checkout is not configured. Please contact support.');
       return;
@@ -91,9 +139,13 @@ export default function CheckoutPage() {
       <div className="min-h-screen flex flex-col items-center justify-center p-4">
         <div className="bg-white p-12 rounded-2xl shadow-2xl flex flex-col items-center text-center">
           <CheckCircle size={80} className="text-green-500 mb-6" />
-          <h2 className="text-4xl font-extrabold text-black mb-2">Payment Successful!</h2>
+          <h2 className="text-4xl font-extrabold text-black mb-2">
+            {orderStatus === 'PAID' ? 'Payment Successful!' : 'Order Placed Successfully!'}
+          </h2>
           <p className="text-lg text-black font-medium mb-6 max-w-md">
-            Thank you for shopping at Lotty&apos;s Store.
+            {orderStatus === 'PAID'
+              ? 'Thank you for shopping at Lotty&apos;s Store.'
+              : 'Your order has been received. Payment is pending; we will confirm the next steps with you.'}
           </p>
           
           <div className="bg-slate-100 border border-slate-300 p-6 rounded-xl w-full max-w-xs mb-8">
@@ -131,7 +183,7 @@ export default function CheckoutPage() {
           <Link href="/cart" className="text-black hover:text-white transition-colors bg-white/30 p-2 rounded-full backdrop-blur-sm">
             <ArrowLeft size={24} />
           </Link>
-          <h1 className="text-4xl font-extrabold text-black drop-shadow-md">Secure Checkout</h1>
+          <h1 className="text-4xl font-extrabold text-black drop-shadow-md">Checkout</h1>
         </div>
 
         <div className="flex flex-col lg:flex-row gap-8">
@@ -181,23 +233,42 @@ export default function CheckoutPage() {
               </div>
 
               <div className="flex justify-between items-center mb-6">
-                <span className="text-black font-bold">Total to Pay</span>
+                <span className="text-black font-bold">Order total</span>
                 <span className="text-3xl font-extrabold text-blue-600">₦{cartTotal.toFixed(2)}</span>
               </div>
+
+              {configError && (
+                <p role="alert" className="mb-4 text-sm text-red-700">
+                  Checkout settings are unavailable. Please refresh and try again.
+                </p>
+              )}
+              {configLoaded && !configError && !paymentEnabled && (
+                <p className="mb-4 text-sm text-gray-700">
+                  Online payment is temporarily unavailable. Your order will be recorded as pending payment.
+                </p>
+              )}
 
               <button 
                 type="submit" 
                 form="checkout-form"
-                disabled={loading}
+                disabled={loading || !configLoaded || configError}
                 className="w-full bg-black text-white py-4 rounded-xl font-bold text-lg hover:bg-gray-800 transition-colors disabled:bg-gray-400 flex items-center justify-center gap-2 shadow-lg"
               >
-                {loading ? 'Processing...' : 'Pay with Paystack'}
-                {!loading && <ShieldCheck size={20} />}
+                {loading
+                  ? 'Processing...'
+                  : !configLoaded
+                    ? 'Loading checkout...'
+                    : paymentEnabled
+                      ? 'Pay with Paystack'
+                      : 'Place Order'}
+                {!loading && paymentEnabled && <ShieldCheck size={20} />}
               </button>
               
-              <p className="text-xs text-center text-black font-medium mt-4 flex items-center justify-center gap-1">
-                <ShieldCheck size={14} className="text-green-600" /> Secured by Paystack
-              </p>
+              {paymentEnabled && (
+                <p className="text-xs text-center text-black font-medium mt-4 flex items-center justify-center gap-1">
+                  <ShieldCheck size={14} className="text-green-600" /> Secured by Paystack
+                </p>
+              )}
             </div>
           </div>
 

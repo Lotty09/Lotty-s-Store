@@ -7,6 +7,7 @@ import { authRoutes } from './routes/auth';
 import { categoryRoutes } from './routes/category';
 import { productRoutes } from './routes/product';
 import { orderRoutes } from './routes/order';
+import { isPaymentEnabled } from './payments';
 
 const jwtSecret = process.env.JWT_SECRET;
 if (!jwtSecret) {
@@ -52,6 +53,10 @@ server.register(multipart, {
 server.get('/', async (request, reply) => {
   return { status: 'ok', message: 'E-commerce API is running' };
 });
+
+server.get('/api/config', async () => ({
+  paymentEnabled: isPaymentEnabled(),
+}));
 
 server.register(authRoutes, { prefix: '/api/auth' });
 server.register(categoryRoutes, { prefix: '/api/categories' });

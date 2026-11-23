@@ -48,7 +48,9 @@ export default function AdminDashboard() {
     }
   };
 
-  const totalRevenue = orders.reduce((sum: number, order) => sum + order.totalAmount, 0);
+  const totalRevenue = orders
+    .filter(order => ['PAID', 'SHIPPED', 'DELIVERED'].includes(order.status))
+    .reduce((sum, order) => sum + order.totalAmount, 0);
 
   if (loading) {
     return (

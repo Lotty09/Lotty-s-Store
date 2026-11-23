@@ -60,6 +60,7 @@ model Order {
   address       String
   totalAmount   Float
   status        String      @default("PENDING")
+  paymentReference String?  @unique
   userId        Int?
   createdAt     DateTime    @default(now())
   user          User?       @relation(fields: [userId], references: [id])
