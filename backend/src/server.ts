@@ -38,7 +38,8 @@ server.register(cors, {
 });
 
 server.register(jwt, {
-  secret: jwtSecret
+  secret: jwtSecret,
+  sign: { expiresIn: '1h' },
 });
 
 server.register(multipart, {

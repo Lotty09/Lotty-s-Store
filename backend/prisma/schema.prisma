@@ -3,7 +3,6 @@ generator client {
 }
 
 datasource db {
-  // Changed from "sqlite" to "postgresql" to match your Neon database
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
@@ -24,8 +23,8 @@ model Category {
   id          Int       @id @default(autoincrement())
   name        String
   description String?
-  products    Product[]
   createdAt   DateTime  @default(now())
+  products    Product[]
 }
 
 model Product {
@@ -38,10 +37,10 @@ model Product {
   sku           String?
   status        String         @default("ACTIVE")
   categoryId    Int
+  createdAt     DateTime       @default(now())
+  orderItems    OrderItem[]
   category      Category       @relation(fields: [categoryId], references: [id])
   images        ProductImage[]
-  orderItems    OrderItem[]
-  createdAt     DateTime       @default(now())
 }
 
 model ProductImage {
@@ -49,8 +48,8 @@ model ProductImage {
   url       String
   altText   String?
   productId Int
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 }
 
 model Order {
@@ -60,21 +59,20 @@ model Order {
   customerPhone String
   address       String
   totalAmount   Float
-  status        String      @default("PENDING") // PENDING, PAID, SHIPPED, DELIVERED
-  paymentReference String?  @unique
-  userId        Int?        // Optional: allows guest checkouts without an account
+  status        String      @default("PENDING")
+  userId        Int?
+  createdAt     DateTime    @default(now())
   user          User?       @relation(fields: [userId], references: [id])
   items         OrderItem[]
-  createdAt     DateTime    @default(now())
 }
 
 model OrderItem {
   id        Int     @id @default(autoincrement())
   orderId   Int
-  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
   productId Int
-  product   Product @relation(fields: [productId], references: [id])
   quantity  Int
   price     Float
-  image     String? // <-- This is the only new line we needed!
+  image     String?
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product   Product @relation(fields: [productId], references: [id])
 }
