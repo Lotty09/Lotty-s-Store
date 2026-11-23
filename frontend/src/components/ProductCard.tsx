@@ -2,11 +2,8 @@
 import { ShoppingCart } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
 import Link from 'next/link';
-
-interface ProductImage { url: string; }
-interface Product {
-  id: number; name: string; price: number; category: { name: string }; images: ProductImage[];
-}
+import Image from 'next/image';
+import type { Product } from '@/types/store';
 
 export default function ProductCard({ product }: { product: Product }) {
   const { addToCart } = useCart();
@@ -14,12 +11,14 @@ export default function ProductCard({ product }: { product: Product }) {
   const imageUrl = product.images?.[0]?.url || null;
 
   const handleAdd = () => {
+    if (product.stockQuantity < 1) return;
     addToCart({
       id: product.id,
       name: product.name,
       price: product.price,
       image: imageUrl,
-      quantity: 1
+      quantity: 1,
+      stockQuantity: product.stockQuantity,
     });
   };
 
@@ -27,7 +26,7 @@ export default function ProductCard({ product }: { product: Product }) {
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow flex flex-col">
       <Link href={`/product/${product.id}`} className="h-56 bg-gray-100 relative w-full block cursor-pointer">
         {imageUrl ? (
-          <img src={imageUrl} alt={product.name} className="object-cover w-full h-full hover:opacity-90 transition-opacity" />
+          <Image src={imageUrl} alt={product.name} fill sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw" className="object-cover hover:opacity-90 transition-opacity" />
         ) : (
           <div className="flex items-center justify-center w-full h-full text-gray-400 text-sm">No Image</div>
         )}
@@ -47,8 +46,8 @@ export default function ProductCard({ product }: { product: Product }) {
           )}
         </div>
         <p className="text-xl font-extrabold text-gray-900 mt-auto mb-4">₦{product.price.toFixed(2)}</p>
-        <button onClick={handleAdd} className="w-full flex items-center justify-center gap-2 bg-gray-900 text-white py-2.5 px-4 rounded-lg hover:bg-gray-800 active:scale-95 transition-all font-medium">
-          <ShoppingCart size={18} /> Add to Cart
+        <button onClick={handleAdd} disabled={product.stockQuantity < 1} className="w-full flex items-center justify-center gap-2 bg-gray-900 text-white py-2.5 px-4 rounded-lg hover:bg-gray-800 active:scale-95 transition-all font-medium disabled:cursor-not-allowed disabled:bg-gray-400">
+          <ShoppingCart size={18} /> {product.stockQuantity < 1 ? 'Out of stock' : 'Add to Cart'}
         </button>
       </div>
     </div>

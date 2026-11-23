@@ -9,7 +9,7 @@ export default function Footer() {
           
           {/* Brand Section */}
           <div>
-            <h3 className="text-xl font-extrabold text-gray-900 mb-4">Lotty's Store</h3>
+            <h3 className="text-xl font-extrabold text-gray-900 mb-4">Lotty&apos;s Store</h3>
             <p className="text-sm text-gray-600">
               Premium quality designs and apparel. 
               Delivered straight to your doorstep.
@@ -52,7 +52,7 @@ export default function Footer() {
         </div>
         
         <div className="border-t border-gray-100 mt-12 pt-8 text-center text-sm text-gray-500">
-          © {new Date().getFullYear()} Lotty's Store. All rights reserved.
+          © {new Date().getFullYear()} Lotty&apos;s Store. All rights reserved.
         </div>
       </div>
     </footer>

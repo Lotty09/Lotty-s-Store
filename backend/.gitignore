@@ -1,10 +1,11 @@
 # Environment Variables (CRITICAL)
 .env
 .env.*
+!.env.example
 
 # Dependencies
 node_modules/
-package-lock.json
+!/package-lock.json
 
 # Build Outputs (Compiled TypeScript)
 dist/

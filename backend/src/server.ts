@@ -1,39 +1,51 @@
+import 'dotenv/config';
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import jwt from '@fastify/jwt';
 import multipart from '@fastify/multipart';
-import staticPlugin from '@fastify/static';
-import path from 'path';
-import fs from 'fs';
 import { authRoutes } from './routes/auth';
 import { categoryRoutes } from './routes/category';
 import { productRoutes } from './routes/product';
 import { orderRoutes } from './routes/order';
 
-// Ensure uploads directory exists in the backend root
-const uploadDir = path.join(process.cwd(), 'uploads');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir);
+const jwtSecret = process.env.JWT_SECRET;
+if (!jwtSecret) {
+  throw new Error('JWT_SECRET must be configured before the API starts.');
 }
 
 const server = Fastify({ logger: true });
 
-// FIXED: Highly permissive CORS configuration
-server.register(cors, { 
-  origin: true,
+const configuredOrigins = (process.env.CORS_ORIGIN ?? '')
+  .split(',')
+  .map(origin => origin.trim())
+  .filter(Boolean);
+
+const allowedOrigins = configuredOrigins.length > 0
+  ? configuredOrigins
+  : process.env.NODE_ENV === 'production'
+    ? []
+    : ['http://localhost:3000', 'http://127.0.0.1:3000'];
+
+if (process.env.NODE_ENV === 'production' && allowedOrigins.length === 0) {
+  throw new Error('CORS_ORIGIN must be configured in production.');
+}
+
+server.register(cors, {
+  origin: allowedOrigins,
+  credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 });
 
 server.register(jwt, {
-  secret: process.env.JWT_SECRET || 'super-secret-development-key'
+  secret: jwtSecret
 });
 
-// Register file handling plugins
-server.register(multipart);
-server.register(staticPlugin, {
-  root: uploadDir,
-  prefix: '/uploads/',
+server.register(multipart, {
+  limits: {
+    files: 5,
+    fileSize: 5 * 1024 * 1024,
+  },
 });
 
 server.get('/', async (request, reply) => {
@@ -47,10 +59,12 @@ server.register(orderRoutes, { prefix: '/api/orders' });
 
 const start = async () => {
   try {
-    // Read Render's dynamic port, or use 3001 locally
-    const port = process.env.PORT ? parseInt(process.env.PORT) : 3001;
-    
-    await server.listen({ port: port, host: '0.0.0.0' });
+    const port = Number(process.env.PORT ?? 3001);
+    if (!Number.isInteger(port) || port < 1 || port > 65535) {
+      throw new Error('PORT must be a valid TCP port number.');
+    }
+
+    await server.listen({ port, host: '0.0.0.0' });
     console.log(`E-commerce API running on port ${port}`);
   } catch (err) {
     server.log.error(err);

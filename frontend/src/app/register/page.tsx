@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Cookies from 'js-cookie';
 import api from '@/lib/api';
+import { getApiErrorMessage } from '@/lib/errors';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -25,14 +26,15 @@ export default function RegisterPage() {
     try {
       const response = await api.post('/auth/register', formData);
       Cookies.set('token', response.data.token, { expires: 7 });
+      localStorage.setItem('admin-token', response.data.token);
       
       if (response.data.user.role === 'ADMIN') {
         router.push('/admin');
       } else {
         router.push('/');
       }
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'An error occurred during registration.');
+    } catch (error: unknown) {
+      setError(getApiErrorMessage(error, 'An error occurred during registration.'));
     } finally {
       setLoading(false);
     }

@@ -1,30 +1,35 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import api from '@/lib/api';
+import Image from 'next/image';
+import type { Order, OrderItem } from '@/types/store';
 
 export default function AdminOrdersPage() {
-  const [orders, setOrders] = useState<any[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [fetching, setFetching] = useState(true);
 
-  useEffect(() => {
-    fetchOrders();
-  }, []);
-
-  const fetchOrders = async () => {
+  const fetchOrders = useCallback(async () => {
     try {
-      const response = await api.get('/orders');
+      const response = await api.get<Order[]>('/orders');
       // Sort so newest orders are at the top
-      const sortedOrders = response.data.sort((a: any, b: any) => 
+      const sortedOrders = [...response.data].sort((a, b) =>
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       );
       setOrders(sortedOrders);
-    } catch (error) {
+    } catch {
       console.error('Failed to load orders');
     } finally {
       setFetching(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void fetchOrders();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [fetchOrders]);
 
   const handleStatusChange = async (orderId: number, newStatus: string) => {
     try {
@@ -32,7 +37,7 @@ export default function AdminOrdersPage() {
       setOrders(orders.map(order => 
         order.id === orderId ? { ...order, status: newStatus } : order
       ));
-    } catch (error) {
+    } catch {
       alert('Failed to update order status');
     }
   };
@@ -86,13 +91,13 @@ export default function AdminOrdersPage() {
                     <td className="px-6 py-4">
                       {/* UPDATED: Flex container to hold the image and text side-by-side */}
                       <div className="flex flex-col gap-3 min-w-[200px]">
-                        {order.items.map((item: any) => (
+                        {order.items.map((item: OrderItem) => (
                           <div key={item.id} className="flex items-center gap-3 bg-white p-2 rounded border border-gray-100 shadow-sm">
                             
                             {/* The Image Thumbnail */}
                             <div className="w-12 h-12 bg-gray-100 rounded overflow-hidden flex-shrink-0 border border-gray-200">
                               {item.image ? (
-                                <img src={item.image} alt="variant" className="w-full h-full object-cover" />
+                                <Image src={item.image} alt="variant" fill sizes="48px" className="object-cover" />
                               ) : (
                                 <div className="w-full h-full flex items-center justify-center text-[8px] text-red-500 font-bold bg-red-50 text-center">
                                   NO<br/>IMAGE

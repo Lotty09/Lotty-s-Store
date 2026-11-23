@@ -1,9 +1,68 @@
-import { FastifyRequest, FastifyReply } from 'fastify';
-import { PrismaClient } from '@prisma/client';
+import { FastifyReply, FastifyRequest } from 'fastify';
+import { Prisma, type ProductImage } from '@prisma/client';
 import { v2 as cloudinary } from 'cloudinary';
 import { Readable } from 'stream';
+import { prisma } from '../lib/prisma';
 
-const prisma = new PrismaClient();
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const readText = (value: unknown, minLength: number, maxLength: number): string | null => {
+  if (typeof value !== 'string') return null;
+
+  const text = value.trim();
+  return text.length >= minLength && text.length <= maxLength ? text : null;
+};
+
+const readOptionalText = (value: unknown, maxLength: number): string | null | undefined => {
+  if (value === undefined || value === null || value === '') return null;
+  return readText(value, 1, maxLength) ?? undefined;
+};
+
+const parseId = (value: string): number | null => {
+  const id = Number(value);
+  return Number.isSafeInteger(id) && id > 0 ? id : null;
+};
+
+const parseCurrency = (value: unknown): number | null => {
+  if (value === '' || value === null || value === undefined) return null;
+
+  const amount = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(amount) || amount < 0) return null;
+
+  return Math.round((amount + Number.EPSILON) * 100) / 100;
+};
+
+const parseNonNegativeInteger = (value: unknown): number | null => {
+  if (value === '' || value === null || value === undefined) return null;
+
+  const number = typeof value === 'number' ? value : Number(value);
+  return Number.isSafeInteger(number) && number >= 0 ? number : null;
+};
+
+const acceptedImageTypes = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
+
+const cloudinaryConfigured = Boolean(
+  process.env.CLOUDINARY_CLOUD_NAME
+  && process.env.CLOUDINARY_API_KEY
+  && process.env.CLOUDINARY_API_SECRET,
+);
+
+const uploadBuffer = (buffer: Buffer): Promise<string> => new Promise((resolve, reject) => {
+  const uploadStream = cloudinary.uploader.upload_stream(
+    { folder: 'lottys-store' },
+    (error, result) => {
+      if (error || !result?.secure_url) {
+        reject(error ?? new Error('Cloud image upload did not return a URL.'));
+        return;
+      }
+
+      resolve(result.secure_url);
+    },
+  );
+
+  Readable.from(buffer).pipe(uploadStream);
+});
 
 // Configure Cloudinary with environment variables
 cloudinary.config({
@@ -28,9 +87,39 @@ export const getProducts = async (request: FastifyRequest, reply: FastifyReply) 
 };
 
 export const createProduct = async (request: FastifyRequest, reply: FastifyReply) => {
-  const { name, description, price, originalPrice, stockQuantity, categoryId, sku } = request.body as any;
-  
+  if (!isRecord(request.body)) {
+    return reply.code(400).send({ error: 'Invalid product data' });
+  }
+
+  const name = readText(request.body.name, 1, 160);
+  const description = readOptionalText(request.body.description, 5_000);
+  const price = parseCurrency(request.body.price);
+  const hasOriginalPrice = request.body.originalPrice !== undefined
+    && request.body.originalPrice !== null
+    && request.body.originalPrice !== '';
+  const originalPrice = hasOriginalPrice ? parseCurrency(request.body.originalPrice) : null;
+  const stockQuantity = parseNonNegativeInteger(request.body.stockQuantity);
+  const categoryId = parseId(String(request.body.categoryId));
+  const sku = readOptionalText(request.body.sku, 120);
+
+  if (!name || description === undefined || price === null || (hasOriginalPrice && originalPrice === null) || stockQuantity === null || !categoryId || sku === undefined) {
+    return reply.code(400).send({ error: 'Provide valid product details.' });
+  }
+
+  if (originalPrice !== null && originalPrice < price) {
+    return reply.code(400).send({ error: 'Original price must be greater than or equal to the current price.' });
+  }
+
   try {
+    const category = await prisma.category.findUnique({
+      where: { id: categoryId },
+      select: { id: true },
+    });
+
+    if (!category) {
+      return reply.code(400).send({ error: 'The selected category does not exist.' });
+    }
+
     const product = await prisma.product.create({
       data: {
         name,
@@ -39,48 +128,56 @@ export const createProduct = async (request: FastifyRequest, reply: FastifyReply
         originalPrice,
         stockQuantity,
         sku,
-        categoryId: Number(categoryId),
-      }
+        categoryId,
+      },
     });
-    reply.code(201).send(product);
+    return reply.code(201).send(product);
   } catch (error) {
-    reply.code(500).send({ error: 'Failed to create product' });
+    request.log.error({ error }, 'Failed to create product');
+    return reply.code(500).send({ error: 'Failed to create product' });
   }
 };
 
 export const uploadProductImage = async (request: FastifyRequest, reply: FastifyReply) => {
   const { id } = request.params as { id: string };
-  // Changed from request.file() to request.files() to catch an array of files
-  const parts = request.files(); 
-  
-  try {
-    const uploadedImages = [];
+  const productId = parseId(id);
+  if (!productId) {
+    return reply.code(400).send({ error: 'Product ID must be a positive integer.' });
+  }
 
-    // Loop through every file passed in the form data
+  if (!cloudinaryConfigured) {
+    return reply.code(503).send({ error: 'Image uploads are not configured.' });
+  }
+
+  try {
+    const product = await prisma.product.findUnique({
+      where: { id: productId },
+      select: { id: true },
+    });
+
+    if (!product) {
+      return reply.code(404).send({ error: 'Product not found' });
+    }
+
+    const uploadedImages: ProductImage[] = [];
+    const parts = request.files();
+
     for await (const part of parts) {
       const buffer = await part.toBuffer();
 
-      // Stream the buffer to Cloudinary
-      const uploadToCloudinary = (): Promise<any> => {
-        return new Promise((resolve, reject) => {
-          const uploadStream = cloudinary.uploader.upload_stream(
-            { folder: 'lottys-store' },
-            (error, result) => {
-              if (error) reject(error);
-              else resolve(result);
-            }
-          );
-          Readable.from(buffer).pipe(uploadStream);
-        });
-      };
+      if (!acceptedImageTypes.has(part.mimetype)) {
+        return reply.code(400).send({ error: 'Only JPEG, PNG, WebP, and GIF images are accepted.' });
+      }
 
-      const cloudinaryResult = await uploadToCloudinary();
+      if (buffer.length === 0) {
+        return reply.code(400).send({ error: 'Uploaded images cannot be empty.' });
+      }
 
-      // Save the secure cloud URL to the database
+      const url = await uploadBuffer(buffer);
       const image = await prisma.productImage.create({
         data: {
-          url: cloudinaryResult.secure_url,
-          productId: Number(id),
+          url,
+          productId,
         }
       });
 
@@ -91,51 +188,66 @@ export const uploadProductImage = async (request: FastifyRequest, reply: Fastify
       return reply.code(400).send({ error: 'No images uploaded' });
     }
 
-    reply.send(uploadedImages);
+    return reply.send(uploadedImages);
   } catch (error) {
-    request.log.error(error);
-    reply.code(500).send({ error: 'Cloud image upload failed' });
+    request.log.error({ error }, 'Cloud image upload failed');
+    return reply.code(500).send({ error: 'Cloud image upload failed' });
   }
 };
 
-// Safely delete product by clearing related records first
 export const deleteProduct = async (request: FastifyRequest, reply: FastifyReply) => {
   const { id } = request.params as { id: string };
-  const productId = Number(id);
+  const productId = parseId(id);
+  if (!productId) {
+    return reply.code(400).send({ error: 'Product ID must be a positive integer.' });
+  }
 
   try {
-    // 1. Delete associated order items to prevent foreign key errors
-    await prisma.orderItem.deleteMany({
-      where: { productId: productId }
+    const product = await prisma.product.findUnique({
+      where: { id: productId },
+      select: { _count: { select: { orderItems: true } } },
     });
 
-    // 2. Delete associated product images
-    await prisma.productImage.deleteMany({
-      where: { productId: productId }
-    });
+    if (!product) {
+      return reply.code(404).send({ error: 'Product not found' });
+    }
 
-    // 3. Delete the actual product
-    await prisma.product.delete({
-      where: { id: productId }
-    });
-    
-    reply.send({ success: true, message: 'Product deleted successfully' });
+    if (product._count.orderItems > 0) {
+      return reply.code(409).send({ error: 'Products with existing orders cannot be deleted.' });
+    }
+
+    await prisma.$transaction([
+      prisma.productImage.deleteMany({ where: { productId } }),
+      prisma.product.delete({ where: { id: productId } }),
+    ]);
+
+    return reply.send({ success: true, message: 'Product deleted successfully' });
   } catch (error) {
-    request.log.error(error);
-    reply.code(500).send({ error: 'Failed to delete product' });
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+      return reply.code(404).send({ error: 'Product not found' });
+    }
+
+    request.log.error({ error }, 'Failed to delete product');
+    return reply.code(500).send({ error: 'Failed to delete product' });
   }
 };
 export const getProductById = async (request: FastifyRequest, reply: FastifyReply) => {
   const { id } = request.params as { id: string };
+  const productId = parseId(id);
+  if (!productId) {
+    return reply.code(400).send({ error: 'Product ID must be a positive integer.' });
+  }
+
   try {
     const product = await prisma.product.findUnique({
-      where: { id: Number(id) },
+      where: { id: productId },
       include: { category: true, images: true }
     });
     
     if (!product) return reply.code(404).send({ error: 'Product not found' });
-    reply.send(product);
+    return reply.send(product);
   } catch (error) {
-    reply.code(500).send({ error: 'Failed to fetch product' });
+    request.log.error({ error }, 'Failed to fetch product');
+    return reply.code(500).send({ error: 'Failed to fetch product' });
   }
 };

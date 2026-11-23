@@ -5,15 +5,24 @@ import api from '@/lib/api';
 import { Search, Package, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { Pacifico } from 'next/font/google';
+import { getApiErrorMessage } from '@/lib/errors';
 
 const pacifico = Pacifico({ weight: '400', subsets: ['latin'] });
+
+type TrackedOrder = {
+  id: number;
+  status: string;
+  customerName: string;
+  address: string;
+  totalAmount: number;
+};
 
 export default function TrackOrderPage() {
   const [orderId, setOrderId] = useState('');
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [orderData, setOrderData] = useState<any>(null);
+  const [orderData, setOrderData] = useState<TrackedOrder | null>(null);
 
   const handleTrack = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,8 +38,8 @@ export default function TrackOrderPage() {
         email: email.trim() 
       });
       setOrderData(response.data);
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to find order.');
+    } catch (error: unknown) {
+      setError(getApiErrorMessage(error, 'Failed to find order.'));
     } finally {
       setLoading(false);
     }
@@ -40,7 +49,7 @@ export default function TrackOrderPage() {
     <div className="min-h-screen flex flex-col items-center p-4 pt-20">
       
       <Link href="/" className={`${pacifico.className} mb-8 text-5xl text-black drop-shadow-md tracking-wide`}>
-        Lotty's <span className="text-white">Store</span>
+        Lotty&apos;s <span className="text-white">Store</span>
       </Link>
 
       <div className="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md border-none">

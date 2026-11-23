@@ -5,23 +5,25 @@ import api from '@/lib/api';
 import { ShoppingCart, ArrowLeft } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
 import Link from 'next/link';
+import Image from 'next/image';
+import type { Product, ProductImage } from '@/types/store';
 
 export default function ProductDetailsPage() {
   const params = useParams();
   const { addToCart } = useCart();
-  const [product, setProduct] = useState<any>(null);
+  const [product, setProduct] = useState<Product | null>(null);
   const [activeImage, setActiveImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchProduct = async () => {
       try {
-        const res = await api.get(`/products/${params.id}`);
+        const res = await api.get<Product>(`/products/${params.id}`);
         setProduct(res.data);
         if (res.data.images && res.data.images.length > 0) {
           setActiveImage(res.data.images[0].url);
         }
-      } catch (error) {
+      } catch {
         console.error('Failed to load product');
       } finally {
         setLoading(false);
@@ -44,7 +46,7 @@ export default function ProductDetailsPage() {
         <div className="space-y-4">
           <div className="h-96 md:h-[500px] bg-gray-100 rounded-2xl overflow-hidden border border-gray-200">
             {activeImage ? (
-              <img src={activeImage} alt={product.name} className="w-full h-full object-cover" />
+              <Image src={activeImage} alt={product.name} fill sizes="(max-width: 768px) 100vw, 50vw" className="object-cover" />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-gray-400">No Image</div>
             )}
@@ -53,13 +55,13 @@ export default function ProductDetailsPage() {
           {/* Thumbnails row */}
           {product.images && product.images.length > 1 && (
             <div className="flex gap-4 overflow-x-auto pb-2">
-              {product.images.map((img: any, idx: number) => (
+              {product.images.map((img: ProductImage, idx: number) => (
                 <button 
                   key={idx} 
                   onClick={() => setActiveImage(img.url)}
                   className={`h-24 w-24 flex-shrink-0 rounded-lg overflow-hidden border-2 transition-all ${activeImage === img.url ? 'border-blue-600 opacity-100' : 'border-transparent opacity-60 hover:opacity-100'}`}
                 >
-                  <img src={img.url} alt="Thumbnail" className="w-full h-full object-cover" />
+                  <Image src={img.url} alt={`${product.name} thumbnail ${idx + 1}`} fill sizes="96px" className="object-cover" />
                 </button>
               ))}
             </div>
@@ -83,8 +85,9 @@ export default function ProductDetailsPage() {
               Availability: <span className="font-semibold text-green-600">{product.stockQuantity} in stock</span>
             </p>
             <button 
-              onClick={() => addToCart({ id: product.id, name: product.name, price: product.price, image: activeImage, quantity: 1 })}
-              className="w-full flex items-center justify-center gap-2 bg-gray-900 text-white py-4 px-8 rounded-xl hover:bg-gray-800 active:scale-95 transition-all font-bold text-lg"
+              onClick={() => addToCart({ id: product.id, name: product.name, price: product.price, image: activeImage, quantity: 1, stockQuantity: product.stockQuantity })}
+              disabled={product.stockQuantity < 1}
+              className="w-full flex items-center justify-center gap-2 bg-gray-900 text-white py-4 px-8 rounded-xl hover:bg-gray-800 active:scale-95 transition-all font-bold text-lg disabled:cursor-not-allowed disabled:bg-gray-400"
             >
               <ShoppingCart size={24} /> Add to Cart
             </button>

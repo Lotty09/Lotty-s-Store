@@ -7,11 +7,12 @@ import { ShoppingBag, ShoppingCart } from 'lucide-react';
 import Link from 'next/link';
 import { useCart } from '@/context/CartContext';
 import { Pacifico } from 'next/font/google';
+import type { Product } from '@/types/store';
 
 const pacifico = Pacifico({ weight: '400', subsets: ['latin'] });
 
 export default function Storefront() {
-  const [products, setProducts] = useState([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   
   const { cartCount } = useCart(); 
@@ -21,7 +22,7 @@ export default function Storefront() {
       try {
         const response = await api.get('/products');
         setProducts(response.data);
-      } catch (error) {
+      } catch {
         console.error('Failed to load products');
       } finally {
         setLoading(false);
@@ -38,7 +39,7 @@ export default function Storefront() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
             <ShoppingBag className="text-blue-600" size={28} />
-            <span className={`${pacifico.className} text-3xl text-gray-900 tracking-wide`}>Lotty's <span className="text-blue-600">Store</span></span>
+            <span className={`${pacifico.className} text-3xl text-gray-900 tracking-wide`}>Lotty&apos;s <span className="text-blue-600">Store</span></span>
           </Link>
           
           <nav className="flex items-center gap-6">
@@ -76,7 +77,7 @@ export default function Storefront() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-            {products.map((product: any) => (
+            {products.map((product) => (
               <ProductCard key={product.id} product={product} />
             ))}
           </div>

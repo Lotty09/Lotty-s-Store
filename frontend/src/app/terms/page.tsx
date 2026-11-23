@@ -7,7 +7,7 @@ export default function TermsPage() {
         <div className="space-y-8 text-gray-600">
           <section>
             <h2 className="text-xl font-bold text-gray-900 mb-3">1. General Overview</h2>
-            <p>Welcome to Lotty's Store. By using our website and purchasing our products, you agree to be bound by these terms. All transactions are processed securely.</p>
+            <p>Welcome to Lotty&apos;s Store. By using our website and purchasing our products, you agree to be bound by these terms. All transactions are processed securely.</p>
           </section>
 
           <section>

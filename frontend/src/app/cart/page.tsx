@@ -3,6 +3,7 @@
 import { useCart } from '@/context/CartContext';
 import { Trash2, ArrowLeft, ShoppingBag } from 'lucide-react';
 import Link from 'next/link';
+import Image from 'next/image';
 
 export default function CartPage() {
   const { cart, removeFromCart, cartTotal } = useCart();
@@ -12,7 +13,7 @@ export default function CartPage() {
       <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
         <ShoppingBag size={64} className="text-gray-300 mb-4" />
         <h2 className="text-2xl font-bold text-gray-900 mb-2">Your cart is empty</h2>
-        <p className="text-gray-600 mb-6">Looks like you haven't added any products yet.</p>
+        <p className="text-gray-600 mb-6">Looks like you haven&apos;t added any products yet.</p>
         <Link href="/" className="bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors">
           Start Shopping
         </Link>
@@ -34,12 +35,12 @@ export default function CartPage() {
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           <ul className="divide-y divide-gray-200">
             {cart.map((item) => (
-              <li key={item.id} className="p-6 flex flex-col sm:flex-row items-center gap-6">
+              <li key={`${item.id}-${item.image || 'no-image'}`} className="p-6 flex flex-col sm:flex-row items-center gap-6">
                 
                 {/* Product Image */}
                 <div className="h-24 w-24 bg-gray-100 rounded-md overflow-hidden flex-shrink-0">
                   {item.image ? (
-                    <img src={item.image} alt={item.name} className="h-full w-full object-cover" />
+                    <Image src={item.image} alt={item.name} fill sizes="96px" className="object-cover" />
                   ) : (
                     <div className="h-full w-full flex items-center justify-center text-gray-400 text-xs">No Image</div>
                   )}

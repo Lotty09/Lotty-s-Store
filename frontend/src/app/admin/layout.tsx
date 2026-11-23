@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Cookies from 'js-cookie';
+import api from '@/lib/api';
 import { LayoutDashboard, ShoppingBag, Tags, LogOut, ShieldAlert, Menu, Package } from 'lucide-react';
 import Link from 'next/link';
 import { Pacifico } from 'next/font/google';
@@ -20,9 +21,21 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     
     if (!cookieToken && !localToken) {
       router.push('/auth');
-    } else {
-      setIsLoading(false);
+      return;
     }
+
+    api.get('/auth/me')
+      .then((response) => {
+        if (response.data.user?.role !== 'ADMIN') {
+          throw new Error('Admin access required');
+        }
+        setIsLoading(false);
+      })
+      .catch(() => {
+        Cookies.remove('token');
+        localStorage.removeItem('admin-token');
+        router.push('/auth');
+      });
   }, [router]);
 
   const handleLogout = () => {
@@ -48,7 +61,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <div className={`p-6 border-b border-gray-200 flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
           {!isCollapsed && (
             <h1 className={`${pacifico.className} text-3xl text-blue-600 tracking-wide whitespace-nowrap overflow-hidden`}>
-              Lotty's <span className="text-gray-800">Admin</span>
+              Lotty&apos;s <span className="text-gray-800">Admin</span>
             </h1>
           )}
           <button 

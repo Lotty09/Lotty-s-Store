@@ -35,9 +35,14 @@ export default function AuthPage() {
       const response = await api.post(endpoint, payload);
       
       const token = response.data.token || response.data.accessToken;
+      if (!token) throw new Error('Authentication response did not include a token.');
       localStorage.setItem('admin-token', token);
-      
-      router.push('/admin');
+
+      if (response.data.user?.role === 'ADMIN') {
+        router.push('/admin');
+      } else {
+        router.push('/');
+      }
     } catch (error) {
       console.error(error);
       alert(isLogin ? 'Login failed. Check credentials.' : 'Registration failed.');
@@ -51,7 +56,7 @@ export default function AuthPage() {
     <div className="min-h-screen bg-gradient-to-br from-blue-400 via-blue-200 to-yellow-400 flex flex-col items-center justify-center p-4">
       
       <Link href="/" className={`${pacifico.className} mb-8 text-5xl text-black drop-shadow-md tracking-wide`}>
-        Lotty's <span className="text-white">Store</span>
+        Lotty&apos;s <span className="text-white">Store</span>
       </Link>
 
       <div className="bg-white p-8 rounded-xl shadow-2xl border border-gray-100 w-full max-w-md">
@@ -85,7 +90,7 @@ export default function AuthPage() {
         </form>
 
         <p className="text-center mt-6 text-sm font-medium text-black">
-          {isLogin ? "Don't have an account? " : "Already have an account? "}
+          {isLogin ? "Don&apos;t have an account? " : "Already have an account? "}
           <button onClick={() => setIsLogin(!isLogin)} className="text-blue-600 font-extrabold hover:underline">
             {isLogin ? 'Register here' : 'Login here'}
           </button>

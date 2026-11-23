@@ -61,6 +61,7 @@ model Order {
   address       String
   totalAmount   Float
   status        String      @default("PENDING") // PENDING, PAID, SHIPPED, DELIVERED
+  paymentReference String?  @unique
   userId        Int?        // Optional: allows guest checkouts without an account
   user          User?       @relation(fields: [userId], references: [id])
   items         OrderItem[]

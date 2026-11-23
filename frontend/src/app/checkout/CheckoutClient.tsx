@@ -1,23 +1,20 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useCart } from '@/context/CartContext';
 import api from '@/lib/api';
 import { ArrowLeft, CheckCircle, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
-import { usePaystackPayment } from 'react-paystack';
+import { getPaymentPublicKey, usePaymentProvider } from '@/lib/payments';
 
 export default function CheckoutPage() {
-  const { cart, cartTotal } = useCart();
+  const { cart, cartTotal, clearCart } = useCart();
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   
   // Store the order ID after payment
   const [orderId, setOrderId] = useState<number | null>(null); 
   
-  // Add the isMounted state
-  const [isMounted, setIsMounted] = useState(false);
-
   const [formData, setFormData] = useState({
     customerName: '',
     customerEmail: '',
@@ -25,42 +22,29 @@ export default function CheckoutPage() {
     address: ''
   });
 
-  // Detect when the browser has loaded
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
-
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // --- PAYSTACK CONFIGURATION ---
-  const paystackConfig = {
-    reference: `LOTTY_${new Date().getTime().toString()}`,
-    email: formData.customerEmail,
-    amount: cartTotal * 100, 
-    publicKey: 'pk_test_00d42013b646ba5bb50d90c6a3d88979d6cf79b3', // <-- PUT YOUR PAYSTACK KEY HERE
-  };
+  const publicKey = getPaymentPublicKey();
+  const startPayment = usePaymentProvider(publicKey);
 
-  const initializePayment = usePaystackPayment(paystackConfig);
-
-  const onSuccess = async (reference: any) => {
+  const onSuccess = async (paymentReference: string) => {
     try {
       const payload = {
         ...formData,
-        totalAmount: cartTotal,
-        // CHANGED: Added the image to the payload so the backend knows which design was ordered
+        paymentReference,
         items: cart.map(item => ({
           id: item.id,
           quantity: item.quantity,
-          price: item.price
+          image: item.image,
         }))
       };
 
       const response = await api.post('/orders', payload);
       setOrderId(response.data.id);
       
-      localStorage.removeItem('techstore-cart');
+      clearCart();
       setSuccess(true);
     } catch (error) {
       console.error('Database save failed:', error);
@@ -77,15 +61,29 @@ export default function CheckoutPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!publicKey) {
+      alert('Checkout is not configured. Please contact support.');
+      return;
+    }
     setLoading(true);
     
-    initializePayment({ onSuccess, onClose } as any);
+    startPayment(
+      {
+        reference: `LOTTY_${Date.now()}`,
+        email: formData.customerEmail,
+        amount: Math.round(cartTotal * 100),
+      },
+      {
+        onSuccess,
+        onClose,
+        onError: (message) => {
+          console.error(message);
+          setLoading(false);
+          alert('Payment could not be started. Please try again.');
+        },
+      },
+    );
   };
-
-  // Important: Return null during server-side rendering
-  if (!isMounted) {
-    return null;
-  }
 
   // Success Screen
   if (success) {
@@ -95,7 +93,7 @@ export default function CheckoutPage() {
           <CheckCircle size={80} className="text-green-500 mb-6" />
           <h2 className="text-4xl font-extrabold text-black mb-2">Payment Successful!</h2>
           <p className="text-lg text-black font-medium mb-6 max-w-md">
-            Thank you for shopping at Lotty's Store.
+            Thank you for shopping at Lotty&apos;s Store.
           </p>
           
           <div className="bg-slate-100 border border-slate-300 p-6 rounded-xl w-full max-w-xs mb-8">

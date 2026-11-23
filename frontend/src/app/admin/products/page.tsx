@@ -1,21 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import api from '@/lib/api';
-// IMPORTED Trash2 icon for the delete button
 import { Plus, ShoppingBag, Tag, Image as ImageIcon, Trash2 } from 'lucide-react';
 import Image from 'next/image';
-
-interface Category { id: number; name: string; }
-interface ProductImage { url: string; }
-interface Product {
-  id: number;
-  name: string;
-  price: number;
-  stockQuantity: number;
-  category: { name: string };
-  images: ProductImage[];
-}
+import type { Category, Product } from '@/types/store';
+import { getApiErrorMessage } from '@/lib/errors';
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -32,25 +22,30 @@ export default function ProductsPage() {
   const [fetching, setFetching] = useState(true);
   const [error, setError] = useState('');
 
-  useEffect(() => { fetchData(); }, []);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       const [productsRes, categoriesRes] = await Promise.all([
-        api.get('/products'),
-        api.get('/categories')
+        api.get<Product[]>('/products'),
+        api.get<Category[]>('/categories')
       ]);
       setProducts(productsRes.data);
       setCategories(categoriesRes.data);
       if (categoriesRes.data.length > 0) {
         setFormData(prev => ({ ...prev, categoryId: categoriesRes.data[0].id.toString() }));
       }
-    } catch (err) {
+    } catch {
       console.error('Failed to fetch data');
     } finally {
       setFetching(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void fetchData();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [fetchData]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -84,8 +79,8 @@ export default function ProductsPage() {
       setImageFiles([]);
       (document.getElementById('image-upload') as HTMLInputElement).value = '';
       
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to process product');
+    } catch (error: unknown) {
+      setError(getApiErrorMessage(error, 'Failed to process product'));
     } finally {
       setLoading(false);
     }
@@ -96,8 +91,8 @@ export default function ProductsPage() {
     try {
       await api.delete(`/products/${id}`);
       setProducts(products.filter(p => p.id !== id));
-    } catch (error: any) {
-      alert(error.response?.data?.error || 'Failed to delete product. Ensure it is not linked to existing orders.');
+    } catch (error: unknown) {
+      alert(getApiErrorMessage(error, 'Failed to delete product. Ensure it is not linked to existing orders.'));
     }
   };
 
@@ -105,7 +100,7 @@ export default function ProductsPage() {
     <div className="space-y-6">
       <div>
         <h2 className="text-3xl font-bold text-gray-900">Products</h2>
-        <p className="mt-2 text-sm text-gray-600">Manage your store's inventory and pricing.</p>
+        <p className="mt-2 text-sm text-gray-600">Manage your store&apos;s inventory and pricing.</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -190,10 +185,12 @@ export default function ProductsPage() {
                       <td className="px-4 py-3 whitespace-nowrap" style={{ width: '96px' }}>
                         {product.images && product.images.length > 0 ? (
                           <div style={{ width: '64px', height: '64px', borderRadius: '8px', overflow: 'hidden', backgroundColor: '#f3f4f6', border: '1px solid #e5e7eb', flexShrink: 0 }}>
-                            <img 
-                              src={product.images[0].url} 
-                              alt={product.name} 
-                              style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                            <Image
+                              src={product.images[0].url}
+                              alt={product.name}
+                              fill
+                              sizes="64px"
+                              className="object-cover"
                             />
                           </div>
                         ) : (

@@ -3,11 +3,12 @@
 import { useEffect, useState } from 'react';
 import api from '@/lib/api';
 import { Package, DollarSign, ListTree, Clock } from 'lucide-react';
+import type { Category, Order, Product } from '@/types/store';
 
 export default function AdminDashboard() {
-  const [orders, setOrders] = useState<any[]>([]);
-  const [products, setProducts] = useState([]);
-  const [categories, setCategories] = useState([]);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -47,7 +48,7 @@ export default function AdminDashboard() {
     }
   };
 
-  const totalRevenue = orders.reduce((sum: number, order: any) => sum + order.totalAmount, 0);
+  const totalRevenue = orders.reduce((sum: number, order) => sum + order.totalAmount, 0);
 
   if (loading) {
     return (
@@ -61,7 +62,7 @@ export default function AdminDashboard() {
     <div className="space-y-8">
       <div>
         <h2 className="text-3xl font-bold text-gray-900">Dashboard Overview</h2>
-        <p className="mt-2 text-sm text-gray-600">Monitor your store's inventory and recent orders.</p>
+        <p className="mt-2 text-sm text-gray-600">Monitor your store&apos;s inventory and recent orders.</p>
       </div>
 
       {/* Dynamic Stats Grid */}
@@ -113,7 +114,7 @@ export default function AdminDashboard() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {orders.map((order: any) => (
+                {orders.map((order) => (
                   <tr key={order.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4 font-bold text-gray-900">#{order.id}</td>
                     <td className="px-6 py-4">

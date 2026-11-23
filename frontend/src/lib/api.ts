@@ -2,8 +2,7 @@ import axios from 'axios';
 import Cookies from 'js-cookie';
 
 const api = axios.create({
-  // Completely removing process.env and localhost to force the Render connection
-  baseURL: 'https://lotty-s-store.onrender.com/api', 
+  baseURL: (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace(/\/$/, ''),
 });
 
 // Automatically attach the JWT token to every request
