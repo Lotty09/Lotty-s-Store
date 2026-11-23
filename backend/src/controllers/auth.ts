@@ -101,8 +101,10 @@ export const loginUser = async (request: FastifyRequest, reply: FastifyReply) =>
 
 export const getCurrentUser = async (request: FastifyRequest, reply: FastifyReply) => {
   try {
+    const tokenUser = request.user;
+    const userId = tokenUser.id;
     const user = await prisma.user.findUnique({
-      where: { id: request.user.id },
+      where: { id: userId },
       select: { id: true, email: true, role: true },
     });
 
